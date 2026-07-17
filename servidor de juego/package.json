@@ -1,7 +1,6 @@
 {
   "name": "batallapixelonline",
   "version": "1.0.0",
-  "description": "Batalla Pixel Online - Servidor",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
