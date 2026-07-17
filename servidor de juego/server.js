@@ -1,6 +1,7 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
+const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
@@ -12,6 +13,15 @@ const io = new Server(server, {
     },
     pingTimeout: 60000,
     pingInterval: 25000
+});
+
+// ============================================================
+// SERVIR ARCHIVOS ESTÁTICOS
+// ============================================================
+app.use(express.static('public'));
+
+app.get('/', (req, res) => {
+    res.sendFile(__dirname + '/public/index.html');
 });
 
 // ============================================================
@@ -75,7 +85,6 @@ function generarCodigo() {
     for (let i = 0; i < 4; i++) {
         codigo += caracteres.charAt(Math.floor(Math.random() * caracteres.length));
     }
-    // Verificar que no exista
     if (salas[codigo]) return generarCodigo();
     return codigo;
 }
@@ -86,98 +95,25 @@ function generarIdUnico() {
 
 function crearEnemigo(ancho, alto, tipoEspecifico) {
     const tiposEnemigos = [
-        { 
-            nombre: 'Slime Verde', 
-            color: '#6bcb77', 
-            vida: 30, 
-            vidaMax: 30,
-            dano: 5, 
-            experiencia: 15, 
-            monedas: 5, 
-            tamaño: 14, 
-            tipo: 'slime',
-            velocidad: 0.8,
-            rango: 100
-        },
-        { 
-            nombre: 'Slime Rojo', 
-            color: '#ff6b6b', 
-            vida: 50, 
-            vidaMax: 50,
-            dano: 8, 
-            experiencia: 25, 
-            monedas: 10, 
-            tamaño: 16, 
-            tipo: 'slime',
-            velocidad: 1.0,
-            rango: 120
-        },
-        { 
-            nombre: 'Esqueleto Guardián', 
-            color: '#ddd', 
-            vida: 80, 
-            vidaMax: 80,
-            dano: 15, 
-            experiencia: 40, 
-            monedas: 20, 
-            tamaño: 18, 
-            tipo: 'esqueleto',
-            velocidad: 1.5,
-            rango: 150
-        },
-        { 
-            nombre: 'Lobo Gris', 
-            color: '#888', 
-            vida: 100, 
-            vidaMax: 100,
-            dano: 18, 
-            experiencia: 55, 
-            monedas: 30, 
-            tamaño: 20, 
-            tipo: 'lobo',
-            velocidad: 2.5,
-            rango: 200
-        },
-        { 
-            nombre: 'Golem de Piedra', 
-            color: '#8B7355', 
-            vida: 150, 
-            vidaMax: 150,
-            dano: 25, 
-            experiencia: 80, 
-            monedas: 50, 
-            tamaño: 26, 
-            tipo: 'golem',
-            velocidad: 0.6,
-            rango: 80
-        },
-        { 
-            nombre: 'Dragón de Fuego', 
-            color: '#ff4444', 
-            vida: 300, 
-            vidaMax: 300,
-            dano: 40, 
-            experiencia: 200, 
-            monedas: 100, 
-            tamaño: 35, 
-            tipo: 'dragon',
-            velocidad: 2.0,
-            rango: 300
-        }
+        { nombre: 'Slime Verde', color: '#6bcb77', vida: 30, vidaMax: 30, dano: 5, experiencia: 15, monedas: 5, tamaño: 14, tipo: 'slime', velocidad: 0.8, rango: 100 },
+        { nombre: 'Slime Rojo', color: '#ff6b6b', vida: 50, vidaMax: 50, dano: 8, experiencia: 25, monedas: 10, tamaño: 16, tipo: 'slime', velocidad: 1.0, rango: 120 },
+        { nombre: 'Esqueleto Guardián', color: '#ddd', vida: 80, vidaMax: 80, dano: 15, experiencia: 40, monedas: 20, tamaño: 18, tipo: 'esqueleto', velocidad: 1.5, rango: 150 },
+        { nombre: 'Lobo Gris', color: '#888', vida: 100, vidaMax: 100, dano: 18, experiencia: 55, monedas: 30, tamaño: 20, tipo: 'lobo', velocidad: 2.5, rango: 200 },
+        { nombre: 'Golem de Piedra', color: '#8B7355', vida: 150, vidaMax: 150, dano: 25, experiencia: 80, monedas: 50, tamaño: 26, tipo: 'golem', velocidad: 0.6, rango: 80 },
+        { nombre: 'Dragón de Fuego', color: '#ff4444', vida: 300, vidaMax: 300, dano: 40, experiencia: 200, monedas: 100, tamaño: 35, tipo: 'dragon', velocidad: 2.0, rango: 300 }
     ];
     
     let tipoElegido;
     if (tipoEspecifico) {
         tipoElegido = tiposEnemigos.find(t => t.tipo === tipoEspecifico) || tiposEnemigos[0];
     } else {
-        // Más probabilidad de enemigos débiles
         const probabilidad = Math.random();
-        if (probabilidad < 0.35) tipoElegido = tiposEnemigos[0]; // Slime Verde
-        else if (probabilidad < 0.55) tipoElegido = tiposEnemigos[1]; // Slime Rojo
-        else if (probabilidad < 0.75) tipoElegido = tiposEnemigos[2]; // Esqueleto
-        else if (probabilidad < 0.88) tipoElegido = tiposEnemigos[3]; // Lobo
-        else if (probabilidad < 0.96) tipoElegido = tiposEnemigos[4]; // Golem
-        else tipoElegido = tiposEnemigos[5]; // Dragón
+        if (probabilidad < 0.35) tipoElegido = tiposEnemigos[0];
+        else if (probabilidad < 0.55) tipoElegido = tiposEnemigos[1];
+        else if (probabilidad < 0.75) tipoElegido = tiposEnemigos[2];
+        else if (probabilidad < 0.88) tipoElegido = tiposEnemigos[3];
+        else if (probabilidad < 0.96) tipoElegido = tiposEnemigos[4];
+        else tipoElegido = tiposEnemigos[5];
     }
     
     return {
@@ -249,33 +185,9 @@ function limpiarSalasVacias() {
 // CONFIGURACIÓN DE ARMAS
 // ============================================================
 const armasBase = {
-    'espadaBasica': { 
-        nombre: 'Espada Básica', 
-        velocidad: 1.2, 
-        dano: 10, 
-        alcance: 50,
-        precio: 0,
-        nivelRequerido: 1,
-        rareza: 'comun'
-    },
-    'espadaHierro': { 
-        nombre: 'Espada de Hierro', 
-        velocidad: 1.0, 
-        dano: 18, 
-        alcance: 55,
-        precio: 100,
-        nivelRequerido: 3,
-        rareza: 'raro'
-    },
-    'hachaBatalla': { 
-        nombre: 'Hacha de Batalla', 
-        velocidad: 0.8, 
-        dano: 28, 
-        alcance: 60,
-        precio: 250,
-        nivelRequerido: 5,
-        rareza: 'epico'
-    }
+    'espadaBasica': { nombre: 'Espada Básica', velocidad: 1.2, dano: 10, alcance: 50, precio: 0, nivelRequerido: 1, rareza: 'comun' },
+    'espadaHierro': { nombre: 'Espada de Hierro', velocidad: 1.0, dano: 18, alcance: 55, precio: 100, nivelRequerido: 3, rareza: 'raro' },
+    'hachaBatalla': { nombre: 'Hacha de Batalla', velocidad: 0.8, dano: 28, alcance: 60, precio: 250, nivelRequerido: 5, rareza: 'epico' }
 };
 
 // ============================================================
@@ -285,14 +197,12 @@ io.on('connection', (socket) => {
     console.log('✅ Jugador conectado:', socket.id);
     console.log('📊 Jugadores totales conectados:', io.engine.clientsCount);
     
-    // Registrar jugador
     jugadoresConectados[socket.id] = {
         id: socket.id,
         conectadoDesde: new Date().toISOString(),
         salaActual: null
     };
 
-    // Enviar ping de bienvenida
     socket.emit('notificacionSala', {
         mensaje: '✅ Conectado al servidor de Batalla Pixel',
         tipo: 'exito'
@@ -301,7 +211,6 @@ io.on('connection', (socket) => {
     // ==================== JUGAR SOLO ====================
     socket.on('jugarSolo', (data) => {
         try {
-            // Validar datos
             if (!data || !data.username) {
                 socket.emit('error', 'Nombre de jugador requerido');
                 return;
@@ -311,7 +220,6 @@ io.on('connection', (socket) => {
             const jugador = crearJugador(socket, data.username, true);
             const mapaKey = data.mapa || 'mapa1';
             
-            // Validar que el mapa existe
             if (!DATOS_MAPAS_SERVIDOR[mapaKey]) {
                 socket.emit('error', 'Mapa no válido');
                 return;
@@ -418,7 +326,6 @@ io.on('connection', (socket) => {
                 return;
             }
             
-            // Verificar nombre duplicado
             if (sala.jugadores.some(j => j.username === data.username)) {
                 socket.emit('error', 'Ya hay un jugador con ese nombre en la sala');
                 return;
@@ -429,14 +336,12 @@ io.on('connection', (socket) => {
             socket.join(codigo);
             jugadoresConectados[socket.id].salaActual = codigo;
             
-            // Enviar datos al nuevo jugador
             socket.emit('unidoALobby', {
                 jugador: jugador,
                 sala: sala,
                 armas: armasBase
             });
             
-            // Notificar a los demás
             socket.to(codigo).emit('jugadorUnidoALobby', sala);
             socket.to(codigo).emit('notificacionSala', {
                 mensaje: '👤 ' + data.username + ' se ha unido a la sala',
@@ -478,18 +383,15 @@ io.on('connection', (socket) => {
             
             sala.partidaIniciada = true;
             
-            // Actualizar mapa si se especificó
             if (data && data.mapa && DATOS_MAPAS_SERVIDOR[data.mapa]) {
                 sala.mapaData = DATOS_MAPAS_SERVIDOR[data.mapa];
             }
             
-            // Generar enemigos
             const cantidadEnemigos = 15 + (sala.mapaData.dificultad * 5);
             sala.enemigos = Array.from({ length: cantidadEnemigos }, () => 
                 crearEnemigo(sala.mapaData.ancho, sala.mapaData.alto)
             );
             
-            // Reposicionar jugadores
             sala.jugadores.forEach((j, index) => {
                 j.x = 200 + (index * 50);
                 j.y = 400;
@@ -557,11 +459,9 @@ io.on('connection', (socket) => {
             
             const { sala, jugador, codigo } = resultado;
             
-            // Actualizar posición
             jugador.x = data.x;
             jugador.y = data.y;
             
-            // Actualizar estado
             if (data.vidas !== undefined) jugador.vidas = data.vidas;
             if (data.muerto !== undefined) jugador.muerto = data.muerto;
             if (data.enemigosParaRevivir !== undefined) jugador.enemigosParaRevivir = data.enemigosParaRevivir;
@@ -569,7 +469,6 @@ io.on('connection', (socket) => {
             
             jugador.ultimaActividad = Date.now();
             
-            // Notificar a otros jugadores
             socket.to(codigo).emit('jugadorMovido', {
                 id: socket.id,
                 x: data.x,
@@ -595,7 +494,6 @@ io.on('connection', (socket) => {
             
             if (!sala.partidaIniciada || jugador.muerto) return;
             
-            // Buscar enemigo más cercano en la dirección del ataque
             let enemigoGolpeado = null;
             let distanciaMinima = 60;
             
@@ -620,7 +518,6 @@ io.on('connection', (socket) => {
                 
                 enemigoGolpeado.vida -= dano;
                 
-                // Notificar ataque
                 io.to(codigo).emit('ataqueRealizado', {
                     atacanteId: socket.id,
                     objetivoId: enemigoGolpeado.id,
@@ -630,15 +527,12 @@ io.on('connection', (socket) => {
                     objetivoY: enemigoGolpeado.y
                 });
                 
-                // Verificar muerte del enemigo
                 if (enemigoGolpeado.vida <= 0) {
                     sala.enemigos = sala.enemigos.filter(e => e.id !== enemigoGolpeado.id);
                     
-                    // Recompensas
                     jugador.experiencia += enemigoGolpeado.experiencia;
                     jugador.monedas += enemigoGolpeado.monedas;
                     
-                    // Verificar subida de nivel
                     while (jugador.experiencia >= jugador.experienciaParaSubir) {
                         jugador.nivel++;
                         jugador.experiencia -= jugador.experienciaParaSubir;
@@ -647,7 +541,6 @@ io.on('connection', (socket) => {
                         jugador.vidaMaxima += 10;
                     }
                     
-                    // Notificar muerte del enemigo
                     io.to(codigo).emit('enemigoDerrotado', {
                         enemigoId: enemigoGolpeado.id,
                         jugadorId: socket.id,
@@ -658,7 +551,6 @@ io.on('connection', (socket) => {
                         loot: []
                     });
                     
-                    // Actualizar jugador
                     io.to(codigo).emit('actualizarJugador', {
                         id: socket.id,
                         nivel: jugador.nivel,
@@ -669,7 +561,6 @@ io.on('connection', (socket) => {
                         muerto: jugador.muerto
                     });
                     
-                    // Revivir compañeros si aplica
                     for (let j of sala.jugadores) {
                         if (j.id !== socket.id && j.muerto && j.enemigosParaRevivir > 0) {
                             j.enemigosParaRevivir--;
@@ -691,7 +582,6 @@ io.on('connection', (socket) => {
                         }
                     }
                     
-                    // Respawn de enemigo
                     setTimeout(() => {
                         if (salas[codigo] && salas[codigo].partidaIniciada) {
                             const nuevo = crearEnemigo(sala.mapaData.ancho, sala.mapaData.alto);
@@ -702,7 +592,6 @@ io.on('connection', (socket) => {
                 }
             }
             
-            // Animación de ataque
             io.to(codigo).emit('animacionAtaque', {
                 id: socket.id,
                 x: jugador.x,
@@ -754,7 +643,6 @@ io.on('connection', (socket) => {
                     delete salas[codigo];
                     console.log('🗑️ Sala eliminada:', codigo);
                 } else {
-                    // Si el creador sale, asignar nuevo creador
                     if (jugador.esCreador && sala.jugadores.length > 0) {
                         sala.jugadores[0].esCreador = true;
                     }
@@ -782,7 +670,6 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => {
         console.log('❌ Jugador desconectado:', socket.id);
         
-        // Limpiar salas
         for (let codigo in salas) {
             const index = salas[codigo].jugadores.findIndex(j => j.id === socket.id);
             if (index !== -1) {
@@ -807,7 +694,6 @@ io.on('connection', (socket) => {
             }
         }
         
-        // Limpiar registro
         delete jugadoresConectados[socket.id];
         console.log('📊 Jugadores restantes:', io.engine.clientsCount);
     });
@@ -820,10 +706,8 @@ setInterval(() => {
     for (let codigo in salas) {
         const sala = salas[codigo];
         
-        // Verificar que la sala está activa
         if (!sala.partidaIniciada || sala.jugadores.length === 0) continue;
         
-        // Verificar jugadores inactivos (desconectados)
         const ahora = Date.now();
         sala.jugadores = sala.jugadores.filter(j => {
             if (j.ultimaActividad && ahora - j.ultimaActividad > 30000) {
@@ -838,7 +722,6 @@ setInterval(() => {
             continue;
         }
         
-        // IA de enemigos
         for (let enemigo of sala.enemigos) {
             if (enemigo.vida <= 0) continue;
             
@@ -859,7 +742,6 @@ setInterval(() => {
             }
             
             if (jugadorMasCercano && distanciaMinima < enemigo.rango) {
-                // Perseguir al jugador
                 const angulo = Math.atan2(
                     jugadorMasCercano.y - enemigo.y,
                     jugadorMasCercano.x - enemigo.x
@@ -870,7 +752,6 @@ setInterval(() => {
                 
                 enemigo.estado = 'persiguiendo';
             } else {
-                // Patrullaje aleatorio
                 if (!enemigo.patrullaAngulo) {
                     enemigo.patrullaAngulo = Math.random() * Math.PI * 2;
                 }
@@ -882,12 +763,10 @@ setInterval(() => {
                 enemigo.estado = 'patrullando';
             }
             
-            // Limitar al mapa
             enemigo.x = Math.max(20, Math.min(sala.mapaData.ancho - 20, enemigo.x));
             enemigo.y = Math.max(20, Math.min(sala.mapaData.alto - 20, enemigo.y));
         }
         
-        // Enviar actualización de enemigos
         io.to(codigo).emit('actualizarEnemigos', {
             enemigos: sala.enemigos
                 .filter(e => e.vida > 0)
@@ -949,10 +828,11 @@ server.listen(PORT, '0.0.0.0', () => {
     console.log('🚀 SERVIDOR INICIADO CORRECTAMENTE');
     console.log('═══════════════════════════════════');
     console.log('📡 Puerto:', PORT);
+    console.log('📁 Archivos estáticos: /public');
+    console.log('🌐 Ruta principal: /');
     console.log('🗺️ Mapas disponibles:', Object.keys(DATOS_MAPAS_SERVIDOR).join(', '));
     console.log('👾 Tipos de enemigos: Slime, Esqueleto, Lobo, Golem, Dragón');
     console.log('⚔️ Armas:', Object.keys(armasBase).join(', '));
     console.log('👥 Máximo jugadores por sala: 4');
-    console.log('💾 Salas en memoria:', Object.keys(salas).length);
     console.log('═══════════════════════════════════');
 });
