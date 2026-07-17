@@ -6394,6 +6394,33 @@ inicializarJuegoCompleto();
 // ============================================================
 // FIN DEL SCRIPT
 // ============================================================
+<!-- CONTROLES TÁCTILES PARA CELULAR (AÑADIDO) -->
+<script>
+    // Esta función simula que el jugador presiona una tecla del teclado en el celular
+    function simularTecla(tecla, accion) {
+        const evento = new KeyboardEvent(accion, { key: tecla });
+        document.dispatchEvent(evento);
+    }
+
+    // Esto solo carga los botones si es un celular o tablet
+    if (/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+        const contenedor = document.createElement('div');
+        contenedor.style.cssText = "position:fixed;bottom:20px;left:0;width:100%;display:flex;justify-content:space-between;padding:0 20px;box-sizing:border-box;z-index:9999;pointer-events:none;";
+        
+        // Botones de movimiento y salto
+        contenedor.innerHTML = `
+            <div style="pointer-events:auto;display:flex;gap:10px;">
+                <button ontouchstart="simularTecla('a', 'keydown')" ontouchend="simularTecla('a', 'keyup')" style="width:70px;height:70px;border-radius:10px;font-size:30px;background:rgba(255,255,255,0.3);border:2px solid white;color:white;">⬅️</button>
+                <button ontouchstart="simularTecla('d', 'keydown')" ontouchend="simularTecla('d', 'keyup')" style="width:70px;height:70px;border-radius:10px;font-size:30px;background:rgba(255,255,255,0.3);border:2px solid white;color:white;">➡️</button>
+                <button ontouchstart="simularTecla(' ', 'keydown')" ontouchend="simularTecla(' ', 'keyup')" style="width:70px;height:70px;border-radius:50%;font-size:25px;background:rgba(255,255,255,0.3);border:2px solid white;color:white;">⬆️</button>
+            </div>
+            <div style="pointer-events:auto;display:flex;gap:10px;align-items:flex-end;">
+                <button ontouchstart="simularTecla('e', 'keydown')" ontouchend="simularTecla('e', 'keyup')" style="width:80px;height:80px;border-radius:50%;font-size:30px;background:rgba(255,50,50,0.5);border:2px solid red;color:white;">⚔️</button>
+            </div>
+        `;
+        document.body.appendChild(contenedor);
+    }
+</script>
 </script>
 
 <!-- ============================================================
