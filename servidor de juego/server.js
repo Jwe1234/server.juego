@@ -12,15 +12,22 @@ const io = new Server(server, {
     }
 });
 
-// Servir archivos estáticos
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Ruta principal
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 const salas = {};
+
+// Datos básicos de mapas para el servidor
+const DATOS_MAPAS_SERVIDOR = {
+    mapa1: { nombre: 'Bosque Principiante', ancho: 3200, alto: 800, colorFondo: '#87CEEB' },
+    mapa2: { nombre: 'Cuevas Oscuras', ancho: 4000, alto: 800, colorFondo: '#1a1a2e' },
+    mapa3: { nombre: 'Montañas del Viento', ancho: 4800, alto: 900, colorFondo: '#87CEEB' },
+    mapa4: { nombre: 'Volcán Ardiente', ancho: 5200, alto: 850, colorFondo: '#2d1a0a' },
+    mapa5: { nombre: 'Castillo Final', ancho: 6000, alto: 900, colorFondo: '#0a0a1a' }
+};
 
 function generarCodigo() {
     return Math.random().toString(36).substring(2, 6).toUpperCase();
@@ -54,18 +61,21 @@ function crearJugador(socket, username, esCreador) {
         id: socket.id,
         username: username || 'Jugador',
         esCreador: esCreador,
-        x: 400 + Math.random() * 200,
-        y: 300 + Math.random() * 100,
-        vida: 100,
-        vidaMaxima: 100,
+        x: 200,
+        y: 400,
+        vidas: 3,
+        maxVidas: 3,
+        muerto: false,
+        enemigosParaRevivir: 0,
         nivel: 1,
         experiencia: 0,
         experienciaParaSubir: 100,
         monedas: 50,
         danoBase: 10,
-        velocidad: 4,
+        velocidad: 5,
         armaEquipada: 'espadaBasica',
-        colorSkin: esCreador ? '#4d96ff' : '#ff6b6b'
+        colorSkin: esCreador ? '#4d96ff' : '#ff6b6b',
+        mapaActual: 'mapa1'
     };
 }
 
@@ -81,12 +91,18 @@ io.on('connection', (socket) => {
             const codigo = generarCodigo();
             const jugador = crearJugador(socket, data.username, true);
             
+            // Usar el mapa seleccionado por el jugador
+            const mapaKey = data.mapa || 'mapa1';
+            jugador.mapaActual = mapaKey;
+            
+            const mapaData = DATOS_MAPAS_SERVIDOR[mapaKey] || DATOS_MAPAS_SERVIDOR['mapa1'];
+            
             const sala = {
                 codigo,
                 jugadores: [jugador],
                 enemigos: Array.from({ length: 20 }, () => crearEnemigo()),
                 objetosSuelo: [],
-                mapaData: { nombre: 'Bosque Oscuro', ancho: 3000, alto: 2000, colorFondo: '#2d5a1e' },
+                mapaData: mapaData,
                 partidaIniciada: true
             };
             
@@ -99,9 +115,10 @@ io.on('connection', (socket) => {
                 armas: armasBase
             });
             
-            console.log('⚔️ Juego individual creado:', codigo);
+            console.log('⚔️ Juego individual creado:', codigo, '- Mapa:', mapaKey);
         } catch (error) {
             console.error('Error en jugarSolo:', error);
+            socket.emit('error', 'Error al crear el juego');
         }
     });
 
@@ -115,7 +132,7 @@ io.on('connection', (socket) => {
                 jugadores: [jugador],
                 enemigos: Array.from({ length: 20 }, () => crearEnemigo()),
                 objetosSuelo: [],
-                mapaData: { nombre: 'Bosque Oscuro', ancho: 3000, alto: 2000, colorFondo: '#2d5a1e' },
+                mapaData: DATOS_MAPAS_SERVIDOR['mapa1'],
                 partidaIniciada: false
             };
             
@@ -131,6 +148,7 @@ io.on('connection', (socket) => {
             console.log('📁 Sala creada:', codigo);
         } catch (error) {
             console.error('Error en crearSalaLobby:', error);
+            socket.emit('error', 'Error al crear la sala');
         }
     });
 
@@ -142,7 +160,11 @@ io.on('connection', (socket) => {
                 return;
             }
             if (sala.jugadores.length >= 4) {
-                socket.emit('error', 'Sala llena');
+                socket.emit('error', 'Sala llena (máximo 4 jugadores)');
+                return;
+            }
+            if (sala.partidaIniciada) {
+                socket.emit('error', 'La partida ya está en curso');
                 return;
             }
             
@@ -160,22 +182,49 @@ io.on('connection', (socket) => {
             console.log('👤 Jugador unido a sala:', data.codigo);
         } catch (error) {
             console.error('Error en unirseASala:', error);
+            socket.emit('error', 'Error al unirse a la sala');
         }
     });
 
-    socket.on('iniciarJuegoDesdeLobby', () => {
+    socket.on('iniciarJuegoDesdeLobby', (data) => {
         try {
             for (let codigo in salas) {
                 const sala = salas[codigo];
                 const jugador = sala.jugadores.find(j => j.id === socket.id);
                 if (jugador && jugador.esCreador) {
                     sala.partidaIniciada = true;
+                    
+                    // Si se envió un mapa, actualizarlo
+                    if (data && data.mapa) {
+                        sala.mapaData = DATOS_MAPAS_SERVIDOR[data.mapa] || sala.mapaData;
+                    }
+                    
                     io.to(codigo).emit('iniciarJuegoTodos', { sala });
+                    console.log('⚔️ Partida iniciada en sala:', codigo);
                     break;
                 }
             }
         } catch (error) {
             console.error('Error en iniciarJuegoDesdeLobby:', error);
+        }
+    });
+
+    socket.on('cambiarMapaLobby', (data) => {
+        try {
+            for (let codigo in salas) {
+                const sala = salas[codigo];
+                const jugador = sala.jugadores.find(j => j.id === socket.id);
+                if (jugador && jugador.esCreador && data.mapa) {
+                    sala.mapaData = DATOS_MAPAS_SERVIDOR[data.mapa] || sala.mapaData;
+                    io.to(codigo).emit('notificacionSala', { 
+                        mensaje: '🗺️ Mapa cambiado a: ' + (DATOS_MAPAS_SERVIDOR[data.mapa]?.nombre || data.mapa),
+                        tipo: 'info'
+                    });
+                    break;
+                }
+            }
+        } catch (error) {
+            console.error('Error en cambiarMapaLobby:', error);
         }
     });
 
@@ -186,7 +235,21 @@ io.on('connection', (socket) => {
                 if (jugador) {
                     jugador.x = data.x;
                     jugador.y = data.y;
-                    socket.to(codigo).emit('jugadorMovido', { id: socket.id, x: data.x, y: data.y });
+                    
+                    // Propagar vidas y estado
+                    if (data.vidas !== undefined) jugador.vidas = data.vidas;
+                    if (data.muerto !== undefined) jugador.muerto = data.muerto;
+                    if (data.enemigosParaRevivir !== undefined) jugador.enemigosParaRevivir = data.enemigosParaRevivir;
+                    
+                    socket.to(codigo).emit('jugadorMovido', { 
+                        id: socket.id, 
+                        x: data.x, 
+                        y: data.y,
+                        vidas: jugador.vidas,
+                        muerto: jugador.muerto,
+                        vx: data.vx || 0,
+                        vy: data.vy || 0
+                    });
                     break;
                 }
             }
@@ -205,13 +268,15 @@ io.on('connection', (socket) => {
                 for (let enemigo of sala.enemigos) {
                     const dist = Math.sqrt((enemigo.x - jugador.x) ** 2 + (enemigo.y - jugador.y) ** 2);
                     if (dist < 60) {
-                        const dano = jugador.danoBase + Math.floor(Math.random() * 5);
+                        const dano = (data.dano || jugador.danoBase) + Math.floor(Math.random() * 3);
+                        const critico = data.critico || (Math.random() < 0.12);
                         enemigo.vida -= dano;
                         
                         io.to(codigo).emit('ataqueRealizado', {
                             atacanteId: socket.id,
                             objetivoId: enemigo.id,
                             dano: dano,
+                            critico: critico,
                             objetivoX: enemigo.x,
                             objetivoY: enemigo.y
                         });
@@ -236,10 +301,10 @@ io.on('connection', (socket) => {
                                 experiencia: jugador.experiencia,
                                 monedas: jugador.monedas,
                                 danoBase: jugador.danoBase,
-                                vidaMaxima: jugador.vidaMaxima
+                                vidaMaxima: jugador.vidaMaxima,
+                                vidas: jugador.vidas
                             });
                             
-                            // Respawn
                             setTimeout(() => {
                                 if (salas[codigo]) {
                                     const nuevo = crearEnemigo();
@@ -276,11 +341,15 @@ io.on('connection', (socket) => {
             for (let codigo in salas) {
                 const idx = salas[codigo].jugadores.findIndex(j => j.id === socket.id);
                 if (idx !== -1) {
+                    const username = salas[codigo].jugadores[idx].username;
                     salas[codigo].jugadores.splice(idx, 1);
+                    
                     if (salas[codigo].jugadores.length === 0) {
                         delete salas[codigo];
+                        console.log('🗑️ Sala eliminada:', codigo);
                     } else {
                         io.to(codigo).emit('jugadorSalioLobby', salas[codigo]);
+                        io.to(codigo).emit('jugadorDesconectado', { id: socket.id, username: username });
                     }
                     break;
                 }
@@ -292,6 +361,23 @@ io.on('connection', (socket) => {
 
     socket.on('disconnect', () => {
         console.log('❌ Jugador desconectado:', socket.id);
+        
+        // Limpiar salas al desconectar
+        for (let codigo in salas) {
+            const idx = salas[codigo].jugadores.findIndex(j => j.id === socket.id);
+            if (idx !== -1) {
+                const username = salas[codigo].jugadores[idx].username;
+                salas[codigo].jugadores.splice(idx, 1);
+                
+                if (salas[codigo].jugadores.length === 0) {
+                    delete salas[codigo];
+                } else {
+                    io.to(codigo).emit('jugadorSalioLobby', salas[codigo]);
+                    io.to(codigo).emit('jugadorDesconectado', { id: socket.id, username: username });
+                }
+                break;
+            }
+        }
     });
 });
 
@@ -306,6 +392,7 @@ setInterval(() => {
             let distMin = Infinity;
             
             for (let jugador of sala.jugadores) {
+                if (jugador.muerto) continue;
                 const dist = Math.sqrt((enemigo.x - jugador.x) ** 2 + (enemigo.y - jugador.y) ** 2);
                 if (dist < distMin) {
                     distMin = dist;
