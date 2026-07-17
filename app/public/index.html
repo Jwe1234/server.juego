@@ -1232,24 +1232,25 @@ const LOGROS = {
 };
 
 console.log('🎮 PARTE 2 CARGADA - Mapas 1-3 definidos, estado global listo');
-console.log('🗺️ Mapas cargados: Bosque Principiante, Cuevas Oscuras, Montañas del Viento');// ==================== MAPA 4: VOLCÁN ARDIENTE ====================
-    mapa4: {
-        id: 'mapa4',
-        nombre: 'Volcán Ardiente',
-        icono: '🌋',
-        dificultad: 4,
-        colorFondo: '#2d1a0a',
-        colorSuelo: '#4a2820',
-        colorAmbiente: '#8B4513',
-        ancho: 5200,
-        alto: 850,
-        descripcion: 'El calor es infernal. Lava, plataformas que desaparecen rápido y enemigos colosales protegen la cima.',
-        historia: 'El Volcán Ardiente despierta cada mil años. Golems de magma y lobos de fuego custodian sus secretos más profundos.',
-        clima: 'fuego',
-        musica: 'intensa',
-        tiempoEstrella: 90,
-        tiempoDosEstrellas: 180,
-        plataformas: [
+console.log('🟣 PARTE 2 CARGADA - Mapas 1-3 definidos, estado global listo'); // ==================== MAPA
+    console.log('🗺️ Mapas cargados: Bosque Principiante, Cuevas Oscuras, Montañas del Viento');// ==================== MAPA 4: VOLCAN ARDIENTE
+    const mapas = {
+        'mapa4': {
+            id: 'mapa4',
+            nombre: 'Volcán Ardiente',
+            icono: '🌋',
+            dificultad: 4,
+            colorFondo: '#2d1a0a',
+            colorSuelo: '#4a2020',
+            colorAmbiente: '#8B4513',
+            ancho: 5200,
+            alto: 850,
+            historia: "El calor es infernal. Lava, plataformas que desaparecen rápido y enemigos colosales protegen la cima...",
+            clima: 'Fuego',
+            musica: 'Intensa',
+            tiempoEstrellas: 90,
+            tiempoDia: 180,
+            plataformas: [
             {x:0,y:750,w:450,h:100,tipo:'roca_volcan',id:'p4_1'},
             {x:280,y:620,w:110,h:22,tipo:'roca_volcan',id:'p4_2'},
             {x:480,y:500,w:85,h:22,tipo:'roca_volcan',temporal:true,tiempoTemp:1200,id:'p4_3'},
