@@ -5,9 +5,20 @@ const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+    cors: {
+        origin: "*",
+        methods: ["GET", "POST"]
+    }
+});
 
+// Servir archivos estáticos
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Ruta principal
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 const salas = {};
 
@@ -17,38 +28,32 @@ function generarCodigo() {
 
 function crearEnemigo() {
     const tipos = [
-        { nombre: 'Slime Verde', color: '#6bcb77', vida: 30, dano: 5, exp: 15, monedas: 5, tamaño: 14, tipo: 'slime' },
-        { nombre: 'Slime Rojo', color: '#ff6b6b', vida: 50, dano: 8, exp: 25, monedas: 10, tamaño: 16, tipo: 'slime' },
-        { nombre: 'Esqueleto', color: '#ddd', vida: 80, dano: 15, exp: 40, monedas: 20, tamaño: 18, tipo: 'esqueleto' },
-        { nombre: 'Lobo Gris', color: '#888', vida: 100, dano: 18, exp: 55, monedas: 30, tamaño: 20, tipo: 'lobo' },
-        { nombre: 'Golem', color: '#8B7355', vida: 300, dano: 35, exp: 150, monedas: 80, tamaño: 30, tipo: 'golem' },
-        { nombre: 'Dragón', color: '#ff4444', vida: 500, dano: 60, exp: 500, monedas: 300, tamaño: 40, tipo: 'dragon' }
+        { nombre: 'Slime Verde', color: '#6bcb77', vida: 30, dano: 5, exp: 15, monedas: 5, tamaño: 14 },
+        { nombre: 'Slime Rojo', color: '#ff6b6b', vida: 50, dano: 8, exp: 25, monedas: 10, tamaño: 16 },
+        { nombre: 'Esqueleto', color: '#ddd', vida: 80, dano: 15, exp: 40, monedas: 20, tamaño: 18 },
+        { nombre: 'Lobo Gris', color: '#888', vida: 100, dano: 18, exp: 55, monedas: 30, tamaño: 20 }
     ];
     const t = tipos[Math.floor(Math.random() * tipos.length)];
     return {
         id: 'e_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
-        nombre: t.nombre, color: t.color, vida: t.vida, vidaMax: t.vida,
-        dano: t.dano, experiencia: t.exp, monedas: t.monedas,
-        tamaño: t.tamaño, tipoClase: t.tipo, x: 0, y: 0
+        nombre: t.nombre,
+        color: t.color,
+        vida: t.vida,
+        vidaMax: t.vida,
+        dano: t.dano,
+        experiencia: t.exp,
+        monedas: t.monedas,
+        tamaño: t.tamaño,
+        x: Math.random() * 2800 + 100,
+        y: Math.random() * 1800 + 100
     };
-}
-
-function generarEnemigos(cantidad, ancho, alto) {
-    const enemigos = [];
-    for (let i = 0; i < cantidad; i++) {
-        const e = crearEnemigo();
-        e.x = Math.random() * (ancho - 200) + 100;
-        e.y = Math.random() * (alto - 200) + 100;
-        enemigos.push(e);
-    }
-    return enemigos;
 }
 
 function crearJugador(socket, username, esCreador) {
     return {
         id: socket.id,
-        username,
-        esCreador,
+        username: username || 'Jugador',
+        esCreador: esCreador,
         x: 400 + Math.random() * 200,
         y: 300 + Math.random() * 100,
         vida: 100,
@@ -58,7 +63,6 @@ function crearJugador(socket, username, esCreador) {
         experienciaParaSubir: 100,
         monedas: 50,
         danoBase: 10,
-        defensa: 5,
         velocidad: 4,
         armaEquipada: 'espadaBasica',
         colorSkin: esCreador ? '#4d96ff' : '#ff6b6b'
@@ -66,324 +70,266 @@ function crearJugador(socket, username, esCreador) {
 }
 
 const armasBase = {
-    'espadaBasica': { nombre: 'Espada Básica', velocidad: 1.2, dano: 10, alcance: 50, precio: 0, nivelRequerido: 1, rareza: 'comun' },
-    'espadaHierro': { nombre: 'Espada de Hierro', velocidad: 1.0, dano: 18, alcance: 55, precio: 100, nivelRequerido: 3, rareza: 'raro' },
-    'hachaBatalla': { nombre: 'Hacha de Batalla', velocidad: 0.8, dano: 28, alcance: 60, precio: 250, nivelRequerido: 5, rareza: 'epico' }
+    'espadaBasica': { nombre: 'Espada Básica', velocidad: 1.2, dano: 10, alcance: 50 }
 };
 
 io.on('connection', (socket) => {
-    console.log('✅ Conectado:', socket.id);
+    console.log('✅ Jugador conectado:', socket.id);
 
-    // ========== JUGAR SOLO ==========
     socket.on('jugarSolo', (data) => {
-        const username = data.username || 'Jugador 1';
-        const codigo = generarCodigo();
-        const jugador = crearJugador(socket, username, true);
-        
-        salas[codigo] = {
-            codigo,
-            jugadores: [jugador],
-            enemigos: generarEnemigos(25, 3000, 2000),
-            objetosSuelo: [],
-            mapaData: { nombre: 'Bosque Oscuro', ancho: 3000, alto: 2000, colorFondo: '#2d5a1e' },
-            partidaIniciada: true
-        };
-        
-        socket.join(codigo);
-        socket.emit('irAlJuego', {
-            jugador: jugador,
-            sala: salas[codigo],
-            armas: armasBase
-        });
-        console.log('⚔️ Jugador SOLO:', username, 'en sala', codigo);
-    });
-
-    // ========== CREAR SALA LOBBY ==========
-    socket.on('crearSalaLobby', (data) => {
-        const username = data.username || 'Jugador 1';
-        const codigo = generarCodigo();
-        const jugador = crearJugador(socket, username, true);
-        
-        salas[codigo] = {
-            codigo,
-            jugadores: [jugador],
-            enemigos: generarEnemigos(25, 3000, 2000),
-            objetosSuelo: [],
-            mapaData: { nombre: 'Bosque Oscuro', ancho: 3000, alto: 2000, colorFondo: '#2d5a1e' },
-            partidaIniciada: false
-        };
-        
-        socket.join(codigo);
-        socket.emit('salaCreadaLobby', {
-            jugador: jugador,
-            sala: salas[codigo],
-            armas: armasBase
-        });
-        console.log('📁 Sala lobby:', codigo, 'creada por', username);
-    });
-
-    // ========== UNIRSE A SALA ==========
-    socket.on('unirseASala', (data) => {
-        const { codigo, username } = data;
-        const sala = salas[codigo];
-        
-        if (!sala) { socket.emit('error', 'Sala no existe'); return; }
-        if (sala.jugadores.length >= 4) { socket.emit('error', 'Sala llena'); return; }
-        if (sala.partidaIniciada) { socket.emit('error', 'Partida en curso'); return; }
-
-        const nombreReal = username || ('Jugador ' + (sala.jugadores.length + 1));
-        const jugador = crearJugador(socket, nombreReal, false);
-        sala.jugadores.push(jugador);
-        socket.join(codigo);
-
-        socket.emit('unidoALobby', {
-            jugador: jugador,
-            sala: sala,
-            armas: armasBase
-        });
-        socket.to(codigo).emit('jugadorUnidoALobby', sala);
-        console.log('👤', nombreReal, 'unido a', codigo);
-    });
-
-    // ========== INICIAR JUEGO DESDE LOBBY ==========
-    socket.on('iniciarJuegoDesdeLobby', () => {
-        for (let codigo in salas) {
-            const sala = salas[codigo];
-            const jugador = sala.jugadores.find(j => j.id === socket.id);
-            if (jugador && jugador.esCreador && !sala.partidaIniciada) {
-                sala.partidaIniciada = true;
-                io.to(codigo).emit('iniciarJuegoTodos', { sala });
-                console.log('⚔️ Partida iniciada en sala:', codigo);
-                break;
-            }
-        }
-    });
-
-    // ========== SALIR DEL LOBBY ==========
-    socket.on('salirDelLobby', () => {
-        for (let codigo in salas) {
-            const sala = salas[codigo];
-            const idx = sala.jugadores.findIndex(j => j.id === socket.id);
-            if (idx !== -1) {
-                const username = sala.jugadores[idx].username;
-                sala.jugadores.splice(idx, 1);
-                if (sala.jugadores.length === 0) {
-                    delete salas[codigo];
-                    console.log('🗑️ Sala eliminada:', codigo);
-                } else {
-                    io.to(codigo).emit('jugadorSalioLobby', sala);
-                }
-                console.log('🚪', username, 'salió de', codigo);
-                break;
-            }
-        }
-    });
-
-    // ========== MOVER ==========
-    socket.on('mover', (data) => {
-        for (let codigo in salas) {
-            const sala = salas[codigo];
-            const jugador = sala.jugadores.find(j => j.id === socket.id);
-            if (jugador) {
-                jugador.x = data.x;
-                jugador.y = data.y;
-                socket.to(codigo).emit('jugadorMovido', { id: socket.id, x: data.x, y: data.y });
-                break;
-            }
-        }
-    });
-
-    // ========== ATACAR ==========
-    socket.on('atacar', (data) => {
-        for (let codigo in salas) {
-            const sala = salas[codigo];
-            const jugador = sala.jugadores.find(j => j.id === socket.id);
-            if (!jugador) continue;
-
-            const direccion = data.direccion;
-            const alcance = armasBase[jugador.armaEquipada]?.alcance || 50;
+        try {
+            const codigo = generarCodigo();
+            const jugador = crearJugador(socket, data.username, true);
             
-            // Buscar enemigos en la dirección del ataque
-            let enemigoGolpeado = null;
-            let distMin = alcance + 20;
+            const sala = {
+                codigo,
+                jugadores: [jugador],
+                enemigos: Array.from({ length: 20 }, () => crearEnemigo()),
+                objetosSuelo: [],
+                mapaData: { nombre: 'Bosque Oscuro', ancho: 3000, alto: 2000, colorFondo: '#2d5a1e' },
+                partidaIniciada: true
+            };
             
-            for (let e of sala.enemigos) {
-                const dx = e.x - jugador.x;
-                const dy = e.y - jugador.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                const ang = Math.atan2(dy, dx);
-                const diffAng = Math.abs(ang - direccion);
-                
-                if (dist < alcance + e.tamaño && diffAng < 1.2) {
-                    if (dist < distMin) {
-                        distMin = dist;
-                        enemigoGolpeado = e;
-                    }
-                }
-            }
-
-            if (enemigoGolpeado) {
-                const arma = armasBase[jugador.armaEquipada] || armasBase['espadaBasica'];
-                const dano = arma.dano + Math.floor(Math.random() * 5);
-                enemigoGolpeado.vida -= dano;
-
-                io.to(codigo).emit('ataqueRealizado', {
-                    atacanteId: socket.id,
-                    objetivoId: enemigoGolpeado.id,
-                    dano,
-                    critico: Math.random() < 0.15,
-                    objetivoX: enemigoGolpeado.x,
-                    objetivoY: enemigoGolpeado.y
-                });
-
-                if (enemigoGolpeado.vida <= 0) {
-                    jugador.experiencia += enemigoGolpeado.experiencia;
-                    jugador.monedas += enemigoGolpeado.monedas;
-                    
-                    // Subir de nivel
-                    while (jugador.experiencia >= jugador.experienciaParaSubir) {
-                        jugador.experiencia -= jugador.experienciaParaSubir;
-                        jugador.nivel++;
-                        jugador.experienciaParaSubir = Math.floor(jugador.experienciaParaSubir * 1.5);
-                        jugador.danoBase += 3;
-                        jugador.vidaMaxima += 15;
-                        jugador.vida = jugador.vidaMaxima;
-                    }
-                    
-                    sala.enemigos = sala.enemigos.filter(e => e.id !== enemigoGolpeado.id);
-                    
-                    io.to(codigo).emit('enemigoDerrotado', {
-                        enemigoId: enemigoGolpeado.id,
-                        jugadorId: socket.id,
-                        experiencia: enemigoGolpeado.experiencia,
-                        monedas: enemigoGolpeado.monedas,
-                        posX: enemigoGolpeado.x,
-                        posY: enemigoGolpeado.y,
-                        loot: []
-                    });
-                    
-                    // Actualizar datos del jugador
-                    io.to(codigo).emit('actualizarJugador', {
-                        id: socket.id,
-                        nivel: jugador.nivel,
-                        experiencia: jugador.experiencia,
-                        monedas: jugador.monedas,
-                        danoBase: jugador.danoBase,
-                        vidaMaxima: jugador.vidaMaxima
-                    });
-                    
-                    // Respawn enemigo
-                    setTimeout(() => {
-                        if (salas[codigo]) {
-                            const nuevo = crearEnemigo();
-                            nuevo.x = Math.random() * 2800 + 100;
-                            nuevo.y = Math.random() * 1800 + 100;
-                            salas[codigo].enemigos.push(nuevo);
-                            io.to(codigo).emit('nuevoEnemigo', nuevo);
-                        }
-                    }, 5000);
-                }
-            }
+            salas[codigo] = sala;
+            socket.join(codigo);
             
-            io.to(codigo).emit('animacionAtaque', {
-                id: socket.id,
-                x: jugador.x,
-                y: jugador.y,
-                direccion: direccion
+            socket.emit('irAlJuego', {
+                jugador: jugador,
+                sala: sala,
+                armas: armasBase
             });
-            break;
+            
+            console.log('⚔️ Juego individual creado:', codigo);
+        } catch (error) {
+            console.error('Error en jugarSolo:', error);
         }
     });
 
-    // ========== CHAT ==========
-    socket.on('enviarMensaje', (data) => {
-        for (let codigo in salas) {
-            const sala = salas[codigo];
-            const jugador = sala.jugadores.find(j => j.id === socket.id);
-            if (jugador) {
-                io.to(codigo).emit('nuevoMensaje', { username: jugador.username, texto: data.texto });
-                break;
+    socket.on('crearSalaLobby', (data) => {
+        try {
+            const codigo = generarCodigo();
+            const jugador = crearJugador(socket, data.username, true);
+            
+            const sala = {
+                codigo,
+                jugadores: [jugador],
+                enemigos: Array.from({ length: 20 }, () => crearEnemigo()),
+                objetosSuelo: [],
+                mapaData: { nombre: 'Bosque Oscuro', ancho: 3000, alto: 2000, colorFondo: '#2d5a1e' },
+                partidaIniciada: false
+            };
+            
+            salas[codigo] = sala;
+            socket.join(codigo);
+            
+            socket.emit('salaCreadaLobby', {
+                jugador: jugador,
+                sala: sala,
+                armas: armasBase
+            });
+            
+            console.log('📁 Sala creada:', codigo);
+        } catch (error) {
+            console.error('Error en crearSalaLobby:', error);
+        }
+    });
+
+    socket.on('unirseASala', (data) => {
+        try {
+            const sala = salas[data.codigo];
+            if (!sala) {
+                socket.emit('error', 'Sala no encontrada');
+                return;
             }
+            if (sala.jugadores.length >= 4) {
+                socket.emit('error', 'Sala llena');
+                return;
+            }
+            
+            const jugador = crearJugador(socket, data.username, false);
+            sala.jugadores.push(jugador);
+            socket.join(data.codigo);
+            
+            socket.emit('unidoALobby', {
+                jugador: jugador,
+                sala: sala,
+                armas: armasBase
+            });
+            
+            socket.to(data.codigo).emit('jugadorUnidoALobby', sala);
+            console.log('👤 Jugador unido a sala:', data.codigo);
+        } catch (error) {
+            console.error('Error en unirseASala:', error);
         }
     });
 
-    // ========== DESCONEXIÓN ==========
-    socket.on('disconnect', () => {
-        console.log('❌ Desconectado:', socket.id);
-        for (let codigo in salas) {
-            const sala = salas[codigo];
-            const idx = sala.jugadores.findIndex(j => j.id === socket.id);
-            if (idx !== -1) {
-                const username = sala.jugadores[idx].username;
-                sala.jugadores.splice(idx, 1);
-                if (sala.jugadores.length === 0) {
-                    delete salas[codigo];
-                    console.log('🗑️ Sala eliminada por desconexión:', codigo);
-                } else {
-                    io.to(codigo).emit('jugadorSalioLobby', sala);
-                    io.to(codigo).emit('jugadorDesconectado', { id: socket.id });
+    socket.on('iniciarJuegoDesdeLobby', () => {
+        try {
+            for (let codigo in salas) {
+                const sala = salas[codigo];
+                const jugador = sala.jugadores.find(j => j.id === socket.id);
+                if (jugador && jugador.esCreador) {
+                    sala.partidaIniciada = true;
+                    io.to(codigo).emit('iniciarJuegoTodos', { sala });
+                    break;
                 }
-                break;
             }
+        } catch (error) {
+            console.error('Error en iniciarJuegoDesdeLobby:', error);
         }
+    });
+
+    socket.on('mover', (data) => {
+        try {
+            for (let codigo in salas) {
+                const jugador = salas[codigo].jugadores.find(j => j.id === socket.id);
+                if (jugador) {
+                    jugador.x = data.x;
+                    jugador.y = data.y;
+                    socket.to(codigo).emit('jugadorMovido', { id: socket.id, x: data.x, y: data.y });
+                    break;
+                }
+            }
+        } catch (error) {
+            console.error('Error en mover:', error);
+        }
+    });
+
+    socket.on('atacar', (data) => {
+        try {
+            for (let codigo in salas) {
+                const sala = salas[codigo];
+                const jugador = sala.jugadores.find(j => j.id === socket.id);
+                if (!jugador || !sala.partidaIniciada) continue;
+
+                for (let enemigo of sala.enemigos) {
+                    const dist = Math.sqrt((enemigo.x - jugador.x) ** 2 + (enemigo.y - jugador.y) ** 2);
+                    if (dist < 60) {
+                        const dano = jugador.danoBase + Math.floor(Math.random() * 5);
+                        enemigo.vida -= dano;
+                        
+                        io.to(codigo).emit('ataqueRealizado', {
+                            atacanteId: socket.id,
+                            objetivoId: enemigo.id,
+                            dano: dano,
+                            objetivoX: enemigo.x,
+                            objetivoY: enemigo.y
+                        });
+
+                        if (enemigo.vida <= 0) {
+                            sala.enemigos = sala.enemigos.filter(e => e.id !== enemigo.id);
+                            jugador.experiencia += enemigo.experiencia;
+                            jugador.monedas += enemigo.monedas;
+                            
+                            io.to(codigo).emit('enemigoDerrotado', {
+                                enemigoId: enemigo.id,
+                                jugadorId: socket.id,
+                                experiencia: enemigo.experiencia,
+                                monedas: enemigo.monedas,
+                                posX: enemigo.x,
+                                posY: enemigo.y
+                            });
+                            
+                            io.to(codigo).emit('actualizarJugador', {
+                                id: socket.id,
+                                nivel: jugador.nivel,
+                                experiencia: jugador.experiencia,
+                                monedas: jugador.monedas,
+                                danoBase: jugador.danoBase,
+                                vidaMaxima: jugador.vidaMaxima
+                            });
+                            
+                            // Respawn
+                            setTimeout(() => {
+                                if (salas[codigo]) {
+                                    const nuevo = crearEnemigo();
+                                    salas[codigo].enemigos.push(nuevo);
+                                    io.to(codigo).emit('nuevoEnemigo', nuevo);
+                                }
+                            }, 5000);
+                        }
+                        break;
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error en atacar:', error);
+        }
+    });
+
+    socket.on('enviarMensaje', (data) => {
+        try {
+            for (let codigo in salas) {
+                const jugador = salas[codigo].jugadores.find(j => j.id === socket.id);
+                if (jugador) {
+                    io.to(codigo).emit('nuevoMensaje', { username: jugador.username, texto: data.texto });
+                    break;
+                }
+            }
+        } catch (error) {
+            console.error('Error en enviarMensaje:', error);
+        }
+    });
+
+    socket.on('salirDelLobby', () => {
+        try {
+            for (let codigo in salas) {
+                const idx = salas[codigo].jugadores.findIndex(j => j.id === socket.id);
+                if (idx !== -1) {
+                    salas[codigo].jugadores.splice(idx, 1);
+                    if (salas[codigo].jugadores.length === 0) {
+                        delete salas[codigo];
+                    } else {
+                        io.to(codigo).emit('jugadorSalioLobby', salas[codigo]);
+                    }
+                    break;
+                }
+            }
+        } catch (error) {
+            console.error('Error en salirDelLobby:', error);
+        }
+    });
+
+    socket.on('disconnect', () => {
+        console.log('❌ Jugador desconectado:', socket.id);
     });
 });
 
-// IA enemigos
+// IA de enemigos
 setInterval(() => {
     for (let codigo in salas) {
         const sala = salas[codigo];
-        if (!sala.partidaIniciada || sala.jugadores.length === 0) continue;
+        if (!sala.partidaIniciada) continue;
         
-        for (let e of sala.enemigos) {
-            let masCercano = null, distMin = Infinity;
-            for (let j of sala.jugadores) {
-                const d = Math.sqrt((e.x - j.x) ** 2 + (e.y - j.y) ** 2);
-                if (d < distMin) { distMin = d; masCercano = j; }
-            }
-            if (masCercano && distMin < 350) {
-                const ang = Math.atan2(masCercano.y - e.y, masCercano.x - e.x);
-                const vel = distMin < 50 ? 0.5 : 1.5;
-                e.x += Math.cos(ang) * vel;
-                e.y += Math.sin(ang) * vel;
-                e.x = Math.max(20, Math.min(2980, e.x));
-                e.y = Math.max(20, Math.min(1980, e.y));
-                
-                // Daño a jugador cercano
-                if (distMin < 40) {
-                    masCercano.vida -= e.dano * 0.016; // daño por frame (~1s)
-                    if (masCercano.vida <= 0) {
-                        masCercano.vida = masCercano.vidaMaxima;
-                        masCercano.x = 400 + Math.random() * 200;
-                        masCercano.y = 300 + Math.random() * 100;
-                    }
+        for (let enemigo of sala.enemigos) {
+            let masCercano = null;
+            let distMin = Infinity;
+            
+            for (let jugador of sala.jugadores) {
+                const dist = Math.sqrt((enemigo.x - jugador.x) ** 2 + (enemigo.y - jugador.y) ** 2);
+                if (dist < distMin) {
+                    distMin = dist;
+                    masCercano = jugador;
                 }
+            }
+            
+            if (masCercano && distMin < 300) {
+                const ang = Math.atan2(masCercano.y - enemigo.y, masCercano.x - enemigo.x);
+                enemigo.x += Math.cos(ang) * 1.5;
+                enemigo.y += Math.sin(ang) * 1.5;
             }
         }
         
         io.to(codigo).emit('actualizarEnemigos', {
             enemigos: sala.enemigos.map(e => ({
                 id: e.id, x: e.x, y: e.y, vida: e.vida, vidaMax: e.vidaMax,
-                color: e.color, tamaño: e.tamaño, tipoClase: e.tipoClase, nombre: e.nombre
-            }))
-        });
-        
-        // Enviar actualización de jugadores
-        io.to(codigo).emit('actualizarTodosJugadores', {
-            jugadores: sala.jugadores.map(j => ({
-                id: j.id,
-                x: j.x,
-                y: j.y,
-                vida: j.vida,
-                vidaMaxima: j.vidaMaxima,
-                nivel: j.nivel,
-                username: j.username
+                color: e.color, tamaño: e.tamaño, nombre: e.nombre
             }))
         });
     }
 }, 50);
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-    console.log('🚀 Servidor en http://localhost:' + PORT);
+server.listen(PORT, '0.0.0.0', () => {
+    console.log('🚀 Servidor corriendo en puerto', PORT);
 });
