@@ -2808,20 +2808,27 @@ function actualizarMovimiento(dt) {
     // Salto
     const teclaSalto = teclas['w'] || teclas['arrowup'] || teclas[' '];
     
-    if (teclaSalto && enSuelo && !saltando) {
+    // Variable local para detectar nueva presión (evita saltos continuos)
+    let teclaSaltoAnterior = false;
+    
+    // Solo saltar si la tecla se presionó NUEVAMENTE (no estaba presionada antes)
+    if (teclaSalto && !teclaSaltoAnterior && enSuelo && !saltando) {
         // Salto normal
         velY = -jugadorLocal.saltoFuerza;
         saltando = true;
         enSuelo = false;
         dobleSaltoUsado = false;
         crearParticulas(jugadorLocal.x, jugadorLocal.y + 20, '#ffffff', 5);
-    } else if (teclaSalto && !enSuelo && puedeDobleSalto && !dobleSaltoUsado && velY > 0) {
+    } else if (teclaSalto && !teclaSaltoAnterior && !enSuelo && puedeDobleSalto && !dobleSaltoUsado && velY > 0) {
         // Doble salto (si tiene la mejora)
         velY = -jugadorLocal.saltoFuerza * 0.8;
         dobleSaltoUsado = true;
         crearParticulas(jugadorLocal.x, jugadorLocal.y + 10, '#6c5ce7', 8);
         agregarNotif('🦘 ¡Doble salto!', 'info');
     }
+    
+    // Guardar estado anterior para detectar nueva presión en el siguiente frame
+    teclaSaltoAnterior = teclaSalto;
     
     // Salto variable (soltar temprano para saltar menos)
     if (!teclaSalto && saltando && velY < -3) {
@@ -2832,7 +2839,6 @@ function actualizarMovimiento(dt) {
     jugadorLocal.x += velX * dt * 60;
     jugadorLocal.y += velY * dt * 60;
 }
-
 // ============================================================
 // FÍSICA DEL JUGADOR
 // ============================================================
@@ -5140,48 +5146,42 @@ function configurarControlesTactiles() {
     
     // Función helper para eventos táctiles
     function addTouchEvents(element, keyDown, keyUp) {
-        if (!element) return;
-        
-        element.addEventListener('pointerdown', (e) => {
-            e.preventDefault();
+    if (!element) return;
+    
+    let presionado = false; // Controla si ya está presionado
+
+    element.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        if (!presionado) {
+            presionado = true;
             if (typeof keyDown === 'function') keyDown();
             else if (typeof keyDown === 'string') teclas[keyDown] = true;
-        });
-        
-        element.addEventListener('pointerup', (e) => {
-            e.preventDefault();
+        }
+    });
+    
+    // Todos los eventos de liberación usan la misma lógica
+    function liberar() {
+        if (presionado) {
+            presionado = false;
             if (typeof keyUp === 'function') keyUp();
             else if (typeof keyUp === 'string') teclas[keyUp] = false;
-        });
-        
-        element.addEventListener('pointerleave', (e) => {
-            if (typeof keyUp === 'function') keyUp();
-            else if (typeof keyUp === 'string') teclas[keyUp] = false;
-        });
-        
-        element.addEventListener('pointercancel', (e) => {
-            if (typeof keyUp === 'function') keyUp();
-            else if (typeof keyUp === 'string') teclas[keyUp] = false;
-        });
-
-        // ===== EVENTOS NUEVOS AÑADIDOS =====
-        element.addEventListener('pointerout', () => {
-            if (typeof keyUp === 'function') keyUp();
-            else if (typeof keyUp === 'string') teclas[keyUp] = false;
-        });
-
-        element.addEventListener('touchcancel', () => {
-            if (typeof keyUp === 'function') keyUp();
-            else if (typeof keyUp === 'string') teclas[keyUp] = false;
-        });
-
-        element.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            if (typeof keyUp === 'function') keyUp();
-            else if (typeof keyUp === 'string') teclas[keyUp] = false;
-        }, { passive: false });
-        // ==================================
+        }
     }
+
+    element.addEventListener('pointerup', (e) => {
+        e.preventDefault();
+        liberar();
+    });
+    
+    element.addEventListener('pointerleave', liberar);
+    element.addEventListener('pointercancel', liberar);
+    element.addEventListener('pointerout', liberar);
+    element.addEventListener('touchcancel', liberar);
+    element.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        liberar();
+    }, { passive: false });
+}
     
     // Configurar cada botón
     addTouchEvents(touchIzq, () => {
