@@ -5163,6 +5163,24 @@ function configurarControlesTactiles() {
             if (typeof keyUp === 'function') keyUp();
             else if (typeof keyUp === 'string') teclas[keyUp] = false;
         });
+
+        // ===== EVENTOS NUEVOS AÑADIDOS =====
+        element.addEventListener('pointerout', () => {
+            if (typeof keyUp === 'function') keyUp();
+            else if (typeof keyUp === 'string') teclas[keyUp] = false;
+        });
+
+        element.addEventListener('touchcancel', () => {
+            if (typeof keyUp === 'function') keyUp();
+            else if (typeof keyUp === 'string') teclas[keyUp] = false;
+        });
+
+        element.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            if (typeof keyUp === 'function') keyUp();
+            else if (typeof keyUp === 'string') teclas[keyUp] = false;
+        }, { passive: false });
+        // ==================================
     }
     
     // Configurar cada botón
